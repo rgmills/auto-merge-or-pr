@@ -1,24 +1,27 @@
 {
-    "name": "auto-merge-or-pr",
-    "version": "0.1.0",
-    "private": true,
-    "description": "GitHub Action to create pull requests",
-    "main": "lib/main.js",
-    "scripts": {
-      "build": "tsc"
-    },
-    "repository": {
-      "type": "git",
-      "url": "git+https://github.com/rgmills/auto-merge-or-pr.git"
-    },
-    "author": "Robert Mills",
-    "license": "MIT",
-    "dependencies": {
-      "@actions/core": "^1.0.0",
-      "@actions/github": "^1.0.0"
-    },
-    "devDependencies": {
-      "@types/node": "^12.0.4",
-      "typescript": "3.6.3"
-    }
+  "name": "auto-merge-or-pr",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub Action to create pull requests",
+  "main": "lib/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "rimraf ./node_modules && yarn",
+    "release": "yarn run dev && yarn run build && rimraf ./node_modules && yarn install --production"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rgmills/auto-merge-or-pr.git"
+  },
+  "author": "Robert Mills",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.0.0",
+    "@actions/github": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^12.0.4",
+    "rimraf": "2.6.2",
+    "typescript": "3.6.3"
   }
+}
