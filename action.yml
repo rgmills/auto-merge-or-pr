@@ -1,0 +1,19 @@
+name: 'auto-merge-or-pr'
+description: 'Auto merge head to base branch. If there are conflicts, fallback to opening a PR.'
+author: 'Robert Mills'
+inputs:
+  GITHUB_TOKEN:
+    description: 'GitHub access token'
+    default: ''
+  BASE_BRANCH:
+    description: 'Base (target) branch for the pull request'
+    default: 'master'
+  HEAD_BRANCH:
+    description: 'Head (source) branch for the pull request'
+    default: ''
+  PULL_REQUEST_TITLE:
+    description: 'Title for the PR.  By default it''ll be in the form: [Bot] Automatic PR from ${headBranch} => ${baseBranch}'
+    default: ''
+runs:
+  using: 'node12'
+  main: 'lib/main.js'
