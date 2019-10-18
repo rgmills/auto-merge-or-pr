@@ -2,6 +2,19 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import Octokit = require('@octokit/rest');
 
+function logError(error: any) {
+  core.debug(JSON.stringify(error));
+  core.error(error.message);
+}
+
+function logInfo(messages: string[]) {
+  core.info('');
+  messages.forEach(message => {
+    core.info(message);
+  });
+  core.info('');
+}
+
 async function tryMergeAsync(octokit: github.GitHub, baseBranch: string, headBranch: string, commit_message: string) {
   const context = github.context;
   try {
@@ -26,6 +39,39 @@ async function tryMergeAsync(octokit: github.GitHub, baseBranch: string, headBra
   }
 }
 
+async function createPrAsync(octokit: github.GitHub, baseBranch: string, headBranch: string, prTitle: string) {
+  const context = github.context;
+
+  const pr: Octokit.PullsCreateParams = {
+    base: baseBranch,
+    body: 'Automatic PR',
+    head: headBranch,
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    title: prTitle
+  };
+
+  const createdPr = await octokit.pulls.create(pr);
+  core.info(`Created a new PR: ${createdPr.data.html_url}`);
+
+  return createdPr;
+}
+
+async function branchExistsAsync(octokit: github.GitHub, branch: string) {
+  const context = github.context;
+
+  try {
+    await octokit.repos.getBranch({
+      branch,
+      ...context.repo
+    });
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function run() {
   const context = github.context;
   const githubToken = core.getInput('GITHUB_TOKEN');
@@ -44,6 +90,8 @@ async function run() {
     headBranch = branchName;
   }
 
+  const headConflictsBranch = `${headBranch}-conflicts`;
+
   try {
     if (!prTitle || prTitle.length === 0) {
       prTitle = `[Bot] Automatic PR from ${headBranch} => ${baseBranch}`;
@@ -55,14 +103,14 @@ async function run() {
 
     const octokit = new github.GitHub(githubToken);
 
-    core.debug(`loading "${headBranch}"`);
+    core.info(`loading "${headBranch}"`);
     const headBranchMetadata = await octokit.repos.getBranch({
       owner: context.repo.owner,
       repo: context.repo.repo,
       branch: headBranch
     });
 
-    core.debug(`loading "${baseBranch}"`);
+    core.info(`loading "${baseBranch}"`);
     const baseBranchMetadata = await octokit.repos.getBranch({
       owner: context.repo.owner,
       repo: context.repo.repo,
@@ -79,38 +127,76 @@ async function run() {
       return;
     }
 
+    // We're here because there were conflicts with the merge.
+    const branchExists = await branchExistsAsync(octokit, headConflictsBranch);
+
+    // If the conflicts branch already exists, try to update the ref.  If that fails, try to merge.
+    if (!!branchExists) {
+      try {
+        logInfo([
+          `Attempting to update ref: ${headConflictsBranch}`,
+          `                with sha: ${headBranchMetadata.data.commit.sha}`
+        ]);
+
+        await octokit.git.updateRef({
+          ref: `refs/heads/${headConflictsBranch}`,
+          sha: headBranchMetadata.data.commit.sha,
+          ...context.repo
+        });
+      } catch (error) {
+        logError(error);
+
+        logInfo([
+          `Unable to update ref for ${headConflictsBranch}`,
+          `Trying to merge...`
+        ]);
+
+        const mergeResult = await tryMergeAsync(octokit, headConflictsBranch, headBranch, `Automatic merge from '${headBranch}'`);
+
+        if (!mergeResult) {
+          try {
+            await createPrAsync(octokit, headBranch, headConflictsBranch, prTitle);
+          } catch (error) {
+            logError(error);
+            core.error(`Failed to create a PR for ${headBranch} => ${headConflictsBranch}`);
+          }
+        }
+      }
+    } else {
+      // Create a new branch based on HEAD to allow conflicts to be resolved without having to modify HEAD itself.
+      logInfo([`Creating a new branch ${headConflictsBranch}...`]);
+
+      await octokit.git.createRef({
+        ref: `refs/heads/${headConflictsBranch}`,
+        sha: headBranchMetadata.data.commit.sha,
+        ...context.repo
+      });
+    }
+
+    // At this point, all we care about is trying to create a PR for conflicts branch into base
     const existingPulls = await octokit.pulls.list({
       owner: context.repo.owner,
       repo: context.repo.repo,
       state: 'open',
       base: baseBranch,
-      head: `${context.repo.owner}:${headBranch}`
+      head: `${context.repo.owner}:${headConflictsBranch}`
     });
 
     core.debug(JSON.stringify(existingPulls));
 
     if (existingPulls.data.length > 0) {
-      const existingPull = existingPulls.data.find(x => x.head.ref === headBranch && x.base.ref === baseBranch);
+      const existingPull = existingPulls.data.find(x => x.head.ref === headConflictsBranch && x.base.ref === baseBranch);
       if (!!existingPull) {
         core.info(`Found an existing open pull request ${existingPull.html_url}, cancelling.`);
+
         return;
       }
     }
 
-    const pr: Octokit.PullsCreateParams = {
-      base: baseBranch,
-      body: 'Automatic PR',
-      head: headBranch,
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      title: prTitle
-    };
-
-    const createdPr = await octokit.pulls.create(pr);
-
-    core.info(`Created a new PR: ${createdPr.data.html_url}`);
+    await createPrAsync(octokit, baseBranch, headConflictsBranch, prTitle);
   } catch (error) {
-    core.debug(JSON.stringify(error));
+    logError(error);
+
     const messageString = error.message as string;
     if (!!messageString) {
       if (messageString.indexOf('pull request already exists') >= 0) {
