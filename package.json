@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "rimraf ./node_modules && yarn",
-    "release": "yarn run dev && yarn run build && rimraf ./node_modules && yarn install --production"
+    "release": "yarn && yarn run dev && yarn run build && rimraf ./node_modules && yarn install --production"
   },
   "repository": {
     "type": "git",
