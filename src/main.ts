@@ -90,7 +90,7 @@ async function run() {
     headBranch = branchName;
   }
 
-  const headConflictsBranch = `${headBranch}-conflicts`;
+  const headConflictsBranch = `conflicts-${headBranch}`;
 
   try {
     if (!prTitle || prTitle.length === 0) {
@@ -156,6 +156,7 @@ async function run() {
         if (!mergeResult) {
           try {
             await createPrAsync(octokit, headBranch, headConflictsBranch, prTitle);
+            return;
           } catch (error) {
             logError(error);
             core.error(`Failed to create a PR for ${headBranch} => ${headConflictsBranch}`);
