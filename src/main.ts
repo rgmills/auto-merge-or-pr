@@ -2,12 +2,13 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import Octokit = require('@octokit/rest');
 
-async function tryMergeAsync(octokit: github.GitHub, baseBranch: string, headBranch: string) {
+async function tryMergeAsync(octokit: github.GitHub, baseBranch: string, headBranch: string, commit_message: string) {
   const context = github.context;
   try {
     await octokit.repos.merge({
       base: baseBranch,
       head: headBranch,
+      commit_message,
       ...context.repo
     });
 
@@ -29,8 +30,10 @@ async function run() {
   const context = github.context;
   const githubToken = core.getInput('GITHUB_TOKEN');
   const baseBranch = core.getInput('BASE_BRANCH');
+
   let headBranch = core.getInput('HEAD_BRANCH');
   let prTitle = core.getInput('PULL_REQUEST_TITLE');
+  let commitMessage = core.getInput('COMMIT_MESSAGE');
 
   if (!headBranch && headBranch.length === 0) {
     let branchName = github.context.ref;
@@ -44,6 +47,10 @@ async function run() {
   try {
     if (!prTitle || prTitle.length === 0) {
       prTitle = `[Bot] Automatic PR from ${headBranch} => ${baseBranch}`;
+    }
+
+    if (!commitMessage) {
+      commitMessage = prTitle;
     }
 
     const octokit = new github.GitHub(githubToken);
@@ -67,7 +74,7 @@ async function run() {
       return;
     }
 
-    const result = await tryMergeAsync(octokit, baseBranch, headBranch);
+    const result = await tryMergeAsync(octokit, baseBranch, headBranch, commitMessage);
     if (!!result) {
       return;
     }

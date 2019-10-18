@@ -14,6 +14,9 @@ inputs:
   PULL_REQUEST_TITLE:
     description: 'Title for the PR.  By default it''ll be in the form: [Bot] Automatic PR from ${headBranch} => ${baseBranch}'
     default: ''
+  COMMIT_MESSAGE:
+    description: 'Commit message for the merge.  By default, it''ll fallback to PULL_REQUEST_TITLE': [Bot] Automatic PR from ${headBranch} => ${baseBranch}'
+    default: ''
 runs:
   using: 'node12'
   main: 'lib/main.js'
