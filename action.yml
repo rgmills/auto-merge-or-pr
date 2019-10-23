@@ -16,7 +16,7 @@ inputs:
     description: 'Title for the PR.  By default it''ll be in the form: [Bot] Automatic PR from ${headBranch} => ${baseBranch}'
     default: ''
   COMMIT_MESSAGE:
-    description: 'Commit message for the merge.  By default, it''ll fallback to PULL_REQUEST_TITLE': [Bot] Automatic PR from ${headBranch} => ${baseBranch}'
+    description: 'Commit message for the merge.  By default, it''ll fallback to PULL_REQUEST_TITLE: [Bot] Automatic PR from ${headBranch} => ${baseBranch}'
     default: ''
 branding:
   color: 'green'
