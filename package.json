@@ -6,7 +6,7 @@
   "main": "lib/main.js",
   "scripts": {
     "build": "tsc",
-    "dev": "rimraf ./node_modules && yarn",
+    "dev": "yarn install",
     "release": "yarn && yarn run dev && yarn run build && rimraf ./node_modules && yarn install --production"
   },
   "repository": {

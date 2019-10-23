@@ -2,6 +2,8 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import Octokit = require('@octokit/rest');
 
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
 function logError(error: any) {
   core.debug(JSON.stringify(error));
   core.error(error.message);
@@ -15,7 +17,7 @@ function logInfo(messages: string[]) {
   core.info('');
 }
 
-async function tryMergeAsync(octokit: github.GitHub, baseBranch: string, headBranch: string, commit_message: string) {
+async function tryMergeAsync(octokit: github.GitHub, baseBranch: string, headBranch: string, commit_message: string, allowDelay: boolean = false) {
   const context = github.context;
   try {
     await octokit.repos.merge({
@@ -33,6 +35,17 @@ async function tryMergeAsync(octokit: github.GitHub, baseBranch: string, headBra
     core.info('Failed to merge: ' + message);
     if (message === 'Merge Conflict') {
       return false;
+    }
+
+    if (message.indexOf('Required status') > -1 && !!allowDelay) {
+      for (let i = 0; i < 30; i++) {
+        await delay(1000 * 60 * 30);
+        
+        const mergeResult = tryMergeAsync(octokit, baseBranch, headBranch, commit_message, false);
+        if (!!mergeResult) {
+          return true;
+        }
+      }
     }
 
     return true;
@@ -80,6 +93,7 @@ async function run() {
   let headBranch = core.getInput('HEAD_BRANCH');
   let prTitle = core.getInput('PULL_REQUEST_TITLE');
   let commitMessage = core.getInput('COMMIT_MESSAGE');
+  let waitForChecks = core.getInput('WAIT_FOR_REQUIRED_CHECKS') === 'true';
 
   if (!headBranch && headBranch.length === 0) {
     let branchName = github.context.ref;
@@ -122,7 +136,7 @@ async function run() {
       return;
     }
 
-    const result = await tryMergeAsync(octokit, baseBranch, headBranch, commitMessage);
+    const result = await tryMergeAsync(octokit, baseBranch, headBranch, commitMessage, !!waitForChecks);
     if (!!result) {
       return;
     }
@@ -151,7 +165,7 @@ async function run() {
           `Trying to merge...`
         ]);
 
-        const mergeResult = await tryMergeAsync(octokit, headConflictsBranch, headBranch, `Automatic merge from '${headBranch}'`);
+        const mergeResult = await tryMergeAsync(octokit, headConflictsBranch, headBranch, `Automatic merge from '${headBranch}'`, !!waitForChecks);
 
         if (!mergeResult) {
           try {

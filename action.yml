@@ -18,6 +18,9 @@ inputs:
   COMMIT_MESSAGE:
     description: 'Commit message for the merge.  By default, it''ll fallback to PULL_REQUEST_TITLE: [Bot] Automatic PR from ${headBranch} => ${baseBranch}'
     default: ''
+  WAIT_FOR_REQUIRED_CHECKS:
+    description: 'Wait for required checks to complete. Max of 15 minutes.'
+    default: 'true'
 branding:
   color: 'green'
   icon: 'git-merge'
