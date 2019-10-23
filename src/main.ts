@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import * as exec from '@actions/exec'
 import * as github from '@actions/github';
 import Octokit = require('@octokit/rest');
 
@@ -38,14 +39,12 @@ async function tryMergeAsync(octokit: github.GitHub, baseBranch: string, headBra
     }
 
     if (message.indexOf('Required status') > -1 && !!allowDelay) {
-      for (let i = 0; i < 30; i++) {
-        await delay(1000 * 60 * 30);
-        
-        const mergeResult = tryMergeAsync(octokit, baseBranch, headBranch, commit_message, false);
-        if (!!mergeResult) {
-          return true;
-        }
-      }
+      // if we reached here, checks are required to merge through the GitHub API.
+      exec.exec('git', ['checkout', baseBranch]);
+      exec.exec('git', ['merge', headBranch]);
+      exec.exec('git', ['push']);
+
+      return true;
     }
 
     return true;
